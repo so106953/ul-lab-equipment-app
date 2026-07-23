@@ -199,13 +199,13 @@ export function App() {
     .map((record) => [`${record.group || ""}::${record.asset}::${record.deviceNo || ""}`, record.person])), [records]);
 
   const selectedDeviceBorrower = useMemo(() => {
-    if (mode !== "领用" || !asset.trim() || !sn.trim()) return "";
+    if (!asset.trim() || !sn.trim()) return "";
     const borrowed = records.find((record) => record.type === "领用"
       && !hasLaterReturn(record, records)
       && record.asset.trim() === asset.trim()
       && record.deviceNo && record.deviceNo.trim() === sn.trim());
     return borrowed?.person || "";
-  }, [asset, mode, records, sn]);
+  }, [asset, records, sn]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -299,10 +299,12 @@ export function App() {
     if (!group) nextErrors.group = "请选择所属组别。";
     if (!asset.trim()) nextErrors.asset = "请选择或输入设备名称。";
     if (!sn.trim()) nextErrors.sn = "请输入设备编号。";
-    if (selectedDeviceBorrower) nextErrors.asset = `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。`;
+    if (mode === "领用" && selectedDeviceBorrower) nextErrors.asset = `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。`;
+    if (mode === "归还" && !selectedDeviceBorrower) nextErrors.asset = "该设备当前没有待归还的借用记录。";
+    if (mode === "归还" && selectedDeviceBorrower && staffId.trim() !== selectedDeviceBorrower) nextErrors.staffId = "请输入正确借用人的工号。";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
-      setNotice(selectedDeviceBorrower ? `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。` : "请修正标记的字段后再提交。");
+      setNotice(mode === "归还" && selectedDeviceBorrower && staffId.trim() !== selectedDeviceBorrower ? "归还失败：请输入正确借用人的工号。" : selectedDeviceBorrower ? `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。` : "请修正标记的字段后再提交。");
       return;
     }
     const submittingStartedAt = Date.now();
