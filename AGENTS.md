@@ -10,3 +10,4 @@ When implementing from a selected generated mock, treat that image as the source
 
 - Red UL Solutions visual language: supplied UL Solutions logo asset, red app shell, white operational surfaces.
 - Equipment-centric lending/return workspace with a compact sidebar, equipment hero, numbered form sections, and fixed transaction summary.
+- Submission confirmation must use the same lightweight fireworks effect on desktop and mobile; it must never obscure the workspace with a blank screen or delay the form after a cloud write.

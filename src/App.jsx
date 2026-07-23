@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ulLogo } from "./ulLogo";
 import {
   MdAdd,
@@ -170,6 +170,7 @@ export function App() {
   const [showReminders, setShowReminders] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showFireworks, setShowFireworks] = useState(false);
+  const fireworksTimerRef = useRef(null);
   const [adminSession, setAdminSession] = useState(null);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [devices, setDevices] = useState([]);
@@ -197,6 +198,10 @@ export function App() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => () => {
+    if (fireworksTimerRef.current) window.clearTimeout(fireworksTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -307,8 +312,17 @@ export function App() {
       setSyncState("云端实时同步中");
     }
     setNotice(`${mode}登记已提交，记录已同步。`);
-    setShowFireworks(true);
-    window.setTimeout(() => setShowFireworks(false), 1600);
+    // Keep the celebration isolated from the cloud request and reuse one light
+    // animation layer on desktop and mobile so a submit never paints a blank page.
+    if (fireworksTimerRef.current) window.clearTimeout(fireworksTimerRef.current);
+    setShowFireworks(false);
+    window.requestAnimationFrame(() => {
+      setShowFireworks(true);
+      fireworksTimerRef.current = window.setTimeout(() => {
+        setShowFireworks(false);
+        fireworksTimerRef.current = null;
+      }, 1550);
+    });
     } finally {
       const remaining = 800 - (Date.now() - submittingStartedAt);
       if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
@@ -482,7 +496,7 @@ export function App() {
 }
 
 function Fireworks() {
-  return <div className="fireworks" aria-label="提交成功"><div className="firework firework-one">{Array.from({ length: 16 }, (_, index) => <i key={index} style={{ "--i": index }} />)}</div><div className="firework firework-two">{Array.from({ length: 16 }, (_, index) => <i key={index} style={{ "--i": index }} />)}</div><strong>提交成功</strong></div>;
+  return <div className="fireworks" role="status" aria-live="polite" aria-label="提交成功，已生成操作记录"><span className="firework firework-one" /><span className="firework firework-two" /><strong>提交成功</strong></div>;
 }
 
 function AdminLogin({ onClose, onLogin }) {
