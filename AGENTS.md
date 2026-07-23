@@ -14,3 +14,4 @@ When implementing from a selected generated mock, treat that image as the source
 - Record lists must show a searchable equipment number and keep issue and return history in separate navigation views. An active loan blocks a second issue of the same equipment number, while still allowing its return registration.
 - Equipment availability and normal status are released only by a later return record with the same equipment name, group, and equipment number; returning a different unit must not release an active loan.
 - A return requires the active borrower's exact staff ID for that same equipment number. Mismatched staff IDs must be blocked with a clear correction message.
+- On mobile, validation notices must sit above the fixed bottom navigation and wrap complete actionable text; the return form also keeps the borrower-ID rule visible near submission.

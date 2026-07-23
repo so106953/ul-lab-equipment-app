@@ -304,7 +304,7 @@ export function App() {
     if (mode === "归还" && selectedDeviceBorrower && staffId.trim() !== selectedDeviceBorrower) nextErrors.staffId = "请输入正确借用人的工号。";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
-      setNotice(mode === "归还" && selectedDeviceBorrower && staffId.trim() !== selectedDeviceBorrower ? "归还失败：请输入正确借用人的工号。" : selectedDeviceBorrower ? `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。` : "请修正标记的字段后再提交。");
+      setNotice(mode === "归还" && selectedDeviceBorrower && staffId.trim() !== selectedDeviceBorrower ? `归还失败：该设备当前由工号 ${selectedDeviceBorrower} 借用。归还工号必须与借用人一致，其他人不能归还；请输入正确借用人的工号。` : selectedDeviceBorrower ? `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。` : "请修正标记的字段后再提交。");
       return;
     }
     const submittingStartedAt = Date.now();
@@ -545,7 +545,7 @@ function AdminPanel({ records, devices, groups, groupRows, onSave, onSaveGroup, 
 function Field({ label, required, error, children }) { return <label className={error ? "field has-error" : "field"}><span>{label}{required && <em> *</em>}</span>{children}{error && <small className="field-error" role="alert">{error}</small>}</label>; }
 
 function Summary({ mode, staffId, group, asset, sn, unit, duration, dueAt, borrowedAt, submitting, onSubmit }) {
-  return <aside className="summary"><h2>借还信息</h2><dl><dt>设备名称</dt><dd>{asset || "—"}</dd><dt>设备编号</dt><dd>{sn || "—"}</dd><dt>领用人工号</dt><dd>{staffId || "—"}</dd><dt>所属组别</dt><dd>{group || "—"}</dd><dt>借用时长</dt><dd>{duration} {unit}</dd><dt>借用时间</dt><dd>{borrowedAt}</dd><dt>预计归还时间</dt><dd>{dueAt}</dd></dl><button className={submitting ? "submit-button is-submitting" : "submit-button"} disabled={submitting} onClick={onSubmit}>{submitting ? <><span className="spinner" />正在提交…</> : <><MdArrowOutward />提交登记</>}</button><small>{submitting ? "正在写入云端，请勿重复提交" : "提交后将生成操作记录"}</small></aside>;
+  return <aside className="summary"><h2>借还信息</h2><dl><dt>设备名称</dt><dd>{asset || "—"}</dd><dt>设备编号</dt><dd>{sn || "—"}</dd><dt>领用人工号</dt><dd>{staffId || "—"}</dd><dt>所属组别</dt><dd>{group || "—"}</dd><dt>借用时长</dt><dd>{duration} {unit}</dd><dt>借用时间</dt><dd>{borrowedAt}</dd><dt>预计归还时间</dt><dd>{dueAt}</dd></dl>{mode === "归还" && <p className="return-rule-hint">归还时将核对此设备编号当前借用记录：归还工号必须与借用人一致；其他人不能归还。请输入正确借用人的工号。</p>}<button className={submitting ? "submit-button is-submitting" : "submit-button"} disabled={submitting} onClick={onSubmit}>{submitting ? <><span className="spinner" />正在提交…</> : <><MdArrowOutward />提交登记</>}</button><small>{submitting ? "正在写入云端，请勿重复提交" : "提交后将生成操作记录"}</small></aside>;
 }
 
 function ReminderPanel({ reminders }) {
