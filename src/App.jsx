@@ -460,7 +460,7 @@ export function App() {
         {view === "admin" ? (
           isAdmin ? <AdminPanel records={records} devices={devices} groups={groups} groupRows={groupRows} onSave={saveDevice} onSaveGroup={saveGroup} onDeleteGroup={deleteGroup} onDeleteRecord={deleteRecord} onLogout={logoutAdmin} /> : <AdminLogin onLogin={loginAdmin} />
         ) : view === "records" ? (
-          <RecordList records={records} recordType={recordFilter} onBack={() => setView("form")} />
+          <FixedRecordList records={records} recordType={recordFilter} onBack={() => setView("form")} />
         ) : view === "assets" ? (
           <Assets onUse={() => setView("form")} />
         ) : (
@@ -578,6 +578,24 @@ function RecordList({ records, recordType, onBack }) {
   const title = recordType ? `${recordType}\u8bb0\u5f55` : "\u8bbe\u5907\u64cd\u4f5c\u8bb0\u5f55";
   const description = recordType ? `\u4ec5\u5c55\u793a${recordType}\u767b\u8bb0\uff0c\u6570\u636e\u4e0e\u4e91\u7aef\u5b9e\u65f6\u540c\u6b65\u3002` : "\u4e91\u7aef\u5b9e\u65f6\u540c\u6b65\u7684\u9886\u7528\u4e0e\u5f52\u8fd8\u767b\u8bb0\u8bb0\u5f55";
   return <section className="records-page"><div className="page-heading"><div><h2>{title}</h2><p>{description}</p></div><button onClick={onBack}>\u8fd4\u56de\u767b\u8bb0</button></div><div className="record-tools"><label>\u641c\u7d22<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="\u5de5\u53f7\u3001\u8bbe\u5907\u540d\u79f0\u6216\u8bbe\u5907\u7f16\u53f7" /></label><span>{visible.length} \u6761\u8bb0\u5f55</span></div><div className="table-wrap"><table><thead><tr><th>\u64cd\u4f5c\u7c7b\u578b</th><th>\u9886\u7528\u4eba\u5de5\u53f7</th><th>\u8bbe\u5907</th><th>\u8bbe\u5907\u7f16\u53f7</th><th>\u63d0\u4ea4\u65f6\u95f4</th><th>\u5b9e\u65f6\u72b6\u6001</th></tr></thead><tbody>{visible.length ? visible.map((record) => { const status = getRecordStatus(record, Date.now(), records); return <tr key={record.id} className={`record-row ${status.kind}`}><td><span className={record.type === "\u9886\u7528" ? "tag use" : "tag return"}>{record.type}</span></td><td>{record.person}</td><td>{record.asset}</td><td>{record.deviceNo || "\u2014"}</td><td>{record.when}</td><td><span className={`tag status-${status.kind}`}>{status.label}</span></td></tr>; }) : <tr><td colSpan="6" className="empty-state">\u6ca1\u6709\u5339\u914d\u7684{recordType || "\u64cd\u4f5c"}\u8bb0\u5f55\u3002</td></tr>}</tbody></table></div></section>;
+}
+
+function FixedRecordList({ records, recordType, onBack }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const visible = records.filter((record) => (!recordType || record.type === recordType)
+    && `${record.person} ${record.asset} ${record.deviceNo || ""} ${record.group || ""}`.toLowerCase().includes(normalizedQuery));
+  const title = recordType ? `${recordType}记录` : "设备操作记录";
+  const description = recordType ? `仅展示${recordType}登记，数据与云端实时同步。` : "云端实时同步的领用与归还登记记录";
+  return (
+    <section className="records-page">
+      <div className="page-heading"><div><h2>{title}</h2><p>{description}</p></div><button onClick={onBack}>返回登记</button></div>
+      <div className="record-tools"><label>搜索<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="工号、设备名称或设备编号" /></label><span>{visible.length} 条记录</span></div>
+      <div className="table-wrap"><table><thead><tr><th>操作类型</th><th>领用人工号</th><th>设备</th><th>设备编号</th><th>提交时间</th><th>实时状态</th></tr></thead><tbody>
+        {visible.length ? visible.map((record) => { const status = getRecordStatus(record, Date.now(), records); return <tr key={record.id} className={`record-row ${status.kind}`}><td><span className={record.type === "领用" ? "tag use" : "tag return"}>{record.type}</span></td><td>{record.person}</td><td>{record.asset}</td><td>{record.deviceNo || "—"}</td><td>{record.when}</td><td><span className={`tag status-${status.kind}`}>{status.label}</span></td></tr>; }) : <tr><td colSpan="6" className="empty-state">没有匹配的{recordType || "操作"}记录。</td></tr>}
+      </tbody></table></div>
+    </section>
+  );
 }
 
 function Assets({ onUse }) { return <section className="assets-page"><div className="page-heading"><div><h2>设备管理</h2><p>当前可领用设备</p></div><button onClick={onUse}>新建领用</button></div><article className="asset-card"><img src="/assets/biological-microscope.png" alt="生物显微镜" /><div><span className="available"><i />可用</span><h2>生物显微镜 <b>CX23</b></h2><p>{equipment.assetNo} · {equipment.location}</p><button onClick={onUse}>选择此设备</button></div></article></section>; }
