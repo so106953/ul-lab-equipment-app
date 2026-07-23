@@ -163,6 +163,7 @@ export function App() {
     } catch { return seedRecords; }
   });
   const [view, setView] = useState("form");
+  const [recordFilter, setRecordFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [errors, setErrors] = useState({});
   const [syncState, setSyncState] = useState(supabase ? "正在连接云端" : "本地模式");
@@ -193,7 +194,16 @@ export function App() {
 
   const borrowedDeviceKeys = useMemo(() => new Map(records
     .filter((record) => record.type === "领用" && !hasLaterReturn(record, records))
-    .map((record) => [`${record.group || ""}::${record.asset}`, record.person])), [records]);
+    .map((record) => [`${record.group || ""}::${record.asset}::${record.deviceNo || ""}`, record.person])), [records]);
+
+  const selectedDeviceBorrower = useMemo(() => {
+    if (mode !== "领用" || !asset.trim() || !sn.trim()) return "";
+    const borrowed = records.find((record) => record.type === "领用"
+      && !hasLaterReturn(record, records)
+      && record.asset.trim() === asset.trim()
+      && record.deviceNo && record.deviceNo.trim() === sn.trim());
+    return borrowed?.person || "";
+  }, [asset, mode, records, sn]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -287,9 +297,10 @@ export function App() {
     if (!group) nextErrors.group = "请选择所属组别。";
     if (!asset.trim()) nextErrors.asset = "请选择或输入设备名称。";
     if (!sn.trim()) nextErrors.sn = "请输入设备编号。";
+    if (selectedDeviceBorrower) nextErrors.asset = `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。`;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
-      setNotice("请修正标记的字段后再提交。");
+      setNotice(selectedDeviceBorrower ? `设备已被借走（工号 ${selectedDeviceBorrower}），请选择其他设备。` : "请修正标记的字段后再提交。");
       return;
     }
     const submittingStartedAt = Date.now();
@@ -415,7 +426,7 @@ export function App() {
         <img className="brand-logo" src={ulLogo} alt="UL Solutions" />
         <nav className="side-nav" aria-label="主导航">
           {nav.map(([label, Icon, target]) => (
-            <button key={label} className={label === "借用 / 归还" && view === "form" ? "nav-item active" : "nav-item"} onClick={() => { setView(target); setNotice(""); }}>
+            <button key={label} className={(target === "form" ? view === "form" : view === "records" && label.includes(recordFilter)) ? "nav-item active" : "nav-item"} onClick={() => { setView(target); setRecordFilter(label.includes("\u9886\u7528") ? "\u9886\u7528" : label.includes("\u5f52\u8fd8") ? "\u5f52\u8fd8" : ""); setNotice(""); }}>
               <Icon aria-hidden="true" /><span>{label}</span>
             </button>
           ))}
@@ -436,7 +447,7 @@ export function App() {
               </button>
               {showReminders && <ReminderPanel reminders={reminders} />}
             </div>
-            <button onClick={() => setView("records")}><MdAssignment />记录</button>
+            <button onClick={() => { setRecordFilter(""); setView("records"); }}><MdAssignment />记录</button>
             <button onClick={() => exportExcel(records, now)}><MdDownload />导出记录（Excel）</button>
             <span className="date"><MdCalendarMonth />{formatHeaderDate(new Date(now))}</span>
           </div>
@@ -445,7 +456,7 @@ export function App() {
         {view === "admin" ? (
           isAdmin ? <AdminPanel records={records} devices={devices} groups={groups} groupRows={groupRows} onSave={saveDevice} onSaveGroup={saveGroup} onDeleteGroup={deleteGroup} onDeleteRecord={deleteRecord} onLogout={logoutAdmin} /> : <AdminLogin onLogin={loginAdmin} />
         ) : view === "records" ? (
-          <Records records={records} onBack={() => setView("form")} />
+          <RecordList records={records} recordType={recordFilter} onBack={() => setView("form")} />
         ) : view === "assets" ? (
           <Assets onUse={() => setView("form")} />
         ) : (
@@ -473,7 +484,7 @@ export function App() {
                 <section className="form-section">
                   <h2><span>4</span>设备与设备编号</h2>
                   <div className="two-col">
-                    <Field label="选择设备" required error={errors.asset}><div className="search-field device-search"><input value={asset} onChange={(e) => { updateField("asset", setAsset)(e.target.value); setDeviceFilter(e.target.value); setShowDevicePicker(true); }} onFocus={() => setShowDevicePicker(true)} aria-label="选择设备" aria-invalid={Boolean(errors.asset)} /><button type="button" className="search-trigger" aria-label="搜索设备" onClick={() => { setDeviceFilter(""); setShowDevicePicker(true); }}><MdSearch /></button>{showDevicePicker && <div className="device-picker">{matchingDevices.length ? matchingDevices.map((device) => { const borrower = borrowedDeviceKeys.get(`${device.group_name}::${device.device_name}`); const borrowed = Boolean(borrower); return <button type="button" className={borrowed ? "device-option borrowed" : "device-option"} key={device.id} onMouseDown={(event) => event.preventDefault()} onClick={() => { setAsset(device.device_name); setSn(device.device_no); setGroup(device.group_name); setShowDevicePicker(false); setDeviceFilter(""); }}>{device.device_name}<small>{device.group_name} · {device.device_no}{borrowed ? ` · 已借出 · 工号 ${borrower}` : ""}</small></button>; }) : <span>管理员后台暂无匹配设备，可手动输入。</span>}</div>}</div></Field>
+                    <Field label="选择设备" required error={errors.asset}><div className="search-field device-search"><input value={asset} onChange={(e) => { updateField("asset", setAsset)(e.target.value); setDeviceFilter(e.target.value); setShowDevicePicker(true); }} onFocus={() => setShowDevicePicker(true)} aria-label="选择设备" aria-invalid={Boolean(errors.asset)} /><button type="button" className="search-trigger" aria-label="搜索设备" onClick={() => { setDeviceFilter(""); setShowDevicePicker(true); }}><MdSearch /></button>{showDevicePicker && <div className="device-picker">{matchingDevices.length ? matchingDevices.map((device) => { const borrower = borrowedDeviceKeys.get(`${device.group_name}::${device.device_name}::${device.device_no}`); const borrowed = Boolean(borrower); return <button type="button" className={borrowed ? "device-option borrowed" : "device-option"} key={device.id} onMouseDown={(event) => event.preventDefault()} onClick={() => { if (borrowed && mode === "领用") { setErrors((current) => ({ ...current, asset: `设备已被借走（工号 ${borrower}），请选择其他设备。` })); setNotice("该设备已被借走，请选择其他设备。"); return; } setAsset(device.device_name); setSn(device.device_no); setGroup(device.group_name); setShowDevicePicker(false); setDeviceFilter(""); }}>{device.device_name}<small>{device.group_name} · {device.device_no}{borrowed ? ` · 已借出 · 工号 ${borrower}` : ""}</small></button>; }) : <span>管理员后台暂无匹配设备，可手动输入。</span>}</div>}</div></Field>
                     <Field label="设备编号" required error={errors.sn}><input value={sn} onChange={(e) => updateField("sn", setSn)(e.target.value)} aria-label="设备编号" aria-invalid={Boolean(errors.sn)} /></Field>
                   </div>
                 </section>
@@ -555,4 +566,14 @@ function Records({ records, onBack }) {
   const visible = records.filter((record) => (filter === "全部" || record.type === filter) && `${record.person} ${record.asset}`.toLowerCase().includes(query.toLowerCase()));
   return <section className="records-page"><div className="page-heading"><div><h2>设备操作记录</h2><p>云端实时同步的领用与归还登记记录</p></div><button onClick={onBack}>返回登记</button></div><div className="record-tools"><label>搜索<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="工号或设备名称" /></label><label>操作<select value={filter} onChange={(e) => setFilter(e.target.value)}><option>全部</option><option>领用</option><option>归还</option></select></label><span>{visible.length} 条记录</span></div><div className="table-wrap"><table><thead><tr><th>操作类型</th><th>领用人工号</th><th>设备</th><th>提交时间</th><th>实时状态</th></tr></thead><tbody>{visible.length ? visible.map((r) => { const status = getRecordStatus(r, Date.now(), records); return <tr key={r.id} className={`record-row ${status.kind}`}><td><span className={r.type === "领用" ? "tag use" : "tag return"}>{r.type}</span></td><td>{r.person}</td><td>{r.asset}</td><td>{r.when}</td><td><span className={`tag status-${status.kind}`}>{status.label}</span></td></tr>; }) : <tr><td colSpan="5" className="empty-state">没有匹配的操作记录。</td></tr>}</tbody></table></div></section>;
 }
+function RecordList({ records, recordType, onBack }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const visible = records.filter((record) => (!recordType || record.type === recordType)
+    && `${record.person} ${record.asset} ${record.deviceNo || ""} ${record.group || ""}`.toLowerCase().includes(normalizedQuery));
+  const title = recordType ? `${recordType}\u8bb0\u5f55` : "\u8bbe\u5907\u64cd\u4f5c\u8bb0\u5f55";
+  const description = recordType ? `\u4ec5\u5c55\u793a${recordType}\u767b\u8bb0\uff0c\u6570\u636e\u4e0e\u4e91\u7aef\u5b9e\u65f6\u540c\u6b65\u3002` : "\u4e91\u7aef\u5b9e\u65f6\u540c\u6b65\u7684\u9886\u7528\u4e0e\u5f52\u8fd8\u767b\u8bb0\u8bb0\u5f55";
+  return <section className="records-page"><div className="page-heading"><div><h2>{title}</h2><p>{description}</p></div><button onClick={onBack}>\u8fd4\u56de\u767b\u8bb0</button></div><div className="record-tools"><label>\u641c\u7d22<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="\u5de5\u53f7\u3001\u8bbe\u5907\u540d\u79f0\u6216\u8bbe\u5907\u7f16\u53f7" /></label><span>{visible.length} \u6761\u8bb0\u5f55</span></div><div className="table-wrap"><table><thead><tr><th>\u64cd\u4f5c\u7c7b\u578b</th><th>\u9886\u7528\u4eba\u5de5\u53f7</th><th>\u8bbe\u5907</th><th>\u8bbe\u5907\u7f16\u53f7</th><th>\u63d0\u4ea4\u65f6\u95f4</th><th>\u5b9e\u65f6\u72b6\u6001</th></tr></thead><tbody>{visible.length ? visible.map((record) => { const status = getRecordStatus(record, Date.now(), records); return <tr key={record.id} className={`record-row ${status.kind}`}><td><span className={record.type === "\u9886\u7528" ? "tag use" : "tag return"}>{record.type}</span></td><td>{record.person}</td><td>{record.asset}</td><td>{record.deviceNo || "\u2014"}</td><td>{record.when}</td><td><span className={`tag status-${status.kind}`}>{status.label}</span></td></tr>; }) : <tr><td colSpan="6" className="empty-state">\u6ca1\u6709\u5339\u914d\u7684{recordType || "\u64cd\u4f5c"}\u8bb0\u5f55\u3002</td></tr>}</tbody></table></div></section>;
+}
+
 function Assets({ onUse }) { return <section className="assets-page"><div className="page-heading"><div><h2>设备管理</h2><p>当前可领用设备</p></div><button onClick={onUse}>新建领用</button></div><article className="asset-card"><img src="/assets/biological-microscope.png" alt="生物显微镜" /><div><span className="available"><i />可用</span><h2>生物显微镜 <b>CX23</b></h2><p>{equipment.assetNo} · {equipment.location}</p><button onClick={onUse}>选择此设备</button></div></article></section>; }
