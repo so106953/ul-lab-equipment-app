@@ -81,9 +81,11 @@ function recordTime(record) {
 function hasLaterReturn(record, records) {
   if (record.type !== "领用") return false;
   const borrowedTime = recordTime(record);
+  const hasDeviceNo = Boolean(record.deviceNo);
   return records.some((candidate) => candidate.type === "归还"
     && candidate.asset === record.asset
     && (!record.group || !candidate.group || candidate.group === record.group)
+    && (!hasDeviceNo || candidate.deviceNo === record.deviceNo)
     && recordTime(candidate) >= borrowedTime);
 }
 
